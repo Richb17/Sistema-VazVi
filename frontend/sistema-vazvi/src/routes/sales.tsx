@@ -8,9 +8,18 @@ import { ShoppingCart } from "../components/shopping-cart/shopping-cart";
 import { SaleCard } from "../components/sale-card/sale-card";
 import { ProductSearchBar } from "../components/product-search-bar/product-search-bar";
 import { Cliente } from "../components/cliente/cliente";
-import { Plazos } from "../components/plazos/plazos";
-import { CheckCircleIcon } from "@heroicons/react/24/solid";
+import { CheckBadgeIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import IBrand from "../models/brand.model";
+import ICategory from "../models/category.model";
+import { setAllBrands } from "../controllers/brand.controller";
+import { setAllCategories } from "../controllers/category.controller";
+import IShoppingCart from "../models/shopping-cart.model";
+import { setAllClients } from "../controllers/client.controller";
+import IClient from "../models/client.model";
+import { addTicket } from "../controllers/ticket.controller";
+import { ITicketCreate } from '../models/ticket.model';
 import { Link } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
 
 const customStyles = {
 	content: {
@@ -21,15 +30,42 @@ const customStyles = {
 		transform: "translate(-50%, -50%)",
 		borderRadius: 30,
 	},
+	overlay: {
+		backgroundColor: "rgba(0, 0, 0, 0.8)",
+	},
 };
 
 function Sales() {
 	const [products, setProducts] = useState<IProduct[]>([]);
+	const [categories, setCategories] = useState<ICategory[]>([]);
+	const [brands, setBrands] = useState<IBrand[]>([]);
+	const [clients, setClients] = useState<IClient[]>([] as IClient[]);
+
+	const [shoppingCart, setShoppingCart] = useState<IShoppingCart[]>([] as IShoppingCart[]);
+
+	const [brand, setBrand] = useState<number | undefined>(undefined);
+	const [category, setCategory] = useState<number | undefined>(undefined);
+	const [search, setSearch] = useState<string | undefined>(undefined);
+
 	const [modalIsOpen, setIsOpen] = useState(false);
 	const [confirmation, setConfirmation] = useState(false);
 
+	const [client, setClient] = useState<number>(0);
+
 	function openModal() {
-		setIsOpen(true);
+		if(client != 0 && shoppingCart.length > 0){
+
+			setIsOpen(true);
+			
+		}else{
+			if (client === 0) {
+				toast.error('Debes seleccionar un cliente para continuar.');
+			}
+			if (shoppingCart.length === 0){
+				toast.error('El carrito de compras está vacío.');
+			}
+		}
+		
 	}
 
 	function closeModal() {
@@ -44,9 +80,27 @@ function Sales() {
 		setConfirmation(false);
 	}
 
+	function handdleCreation(){
+		if(client != 0 && shoppingCart.length > 0){
+			var newTicket: ITicketCreate = {
+				total: shoppingCart.reduce((total, item) => total + (item.product.price * item.quantity), 0),
+				client: client
+			};
+			openConfirmation();
+			addTicket(newTicket, shoppingCart);	
+		}
+	}
+
 	React.useEffect(() => {
-		setAllProducts(setProducts);
-	}, [products]);
+		setAllProducts(setProducts, category, brand, search);
+		setAllCategories(setCategories);
+		setAllBrands(setBrands);
+		setAllClients(setClients, search);
+	}, []);
+	
+	React.useEffect(() => {
+		setAllProducts(setProducts, category, brand, search);
+	}, [search, products, shoppingCart]);
 
 	return (
 		<div>
@@ -72,7 +126,7 @@ function Sales() {
 								className="btn btnPrimary"
 								onClick={() => {
 									closeModal();
-									openConfirmation();
+									handdleCreation();
 								}}
 							>
 								Terminar
@@ -86,10 +140,11 @@ function Sales() {
 					onRequestClose={closeConfirmation}
 					style={customStyles}
 					contentLabel="Confirmation Modal"
+					shouldCloseOnOverlayClick={false}
 				>
 					<div className="confirmationModal">
 						<h1>
-							<CheckCircleIcon className="confirmationLogo" /> ¡La venta fue registrada!
+							<CheckBadgeIcon className="confirmationLogo"/> ¡La venta fue registrada!
 						</h1>
 
 						<div className="confirmationBtns">
@@ -101,7 +156,7 @@ function Sales() {
 								Terminar
 							</Link>
 							<Link
-								to="/clients"
+								to={`/clients/${client}`}
 								className="btn btnPrimary"
 								onClick={closeConfirmation}
 							>
@@ -112,26 +167,45 @@ function Sales() {
 				</Modal>
 				<div className="grid">
 					<div className="column">
-						<Cliente />
-						<Plazos />
+						<Cliente clients={clients} setClient={setClient}/>
 					</div>
 					<div className="col2">
 						<div>
-							<ProductSearchBar />
+							<ProductSearchBar 
+								categories={categories}
+								brands={brands}
+								searchFilter={setSearch}
+								categoryFilter={setCategory}
+								brandFilter={setBrand}
+							/>
 							<div className="containerCardsSales">
-								{products.map((product: IProduct) => (
+								{products
+								.filter((product) => product.stock > 0 && product.is_active)
+								.map((product: IProduct) => (
 									<div key={product.id}>
-										<SaleCard product={product} />
+										<SaleCard 
+											product={product}
+											setShoppingCart={setShoppingCart}
+											shoppingCart={shoppingCart} 
+										/>
 									</div>
 								))}
 							</div>
 						</div>
 						<div>
-							<ShoppingCart openModal={openModal} />
+							<ShoppingCart 
+								openModal={openModal} 
+								setShoppingCart={setShoppingCart}
+								shoppingCart={shoppingCart}
+							/>
 						</div>
 					</div>
 				</div>
 			</div>
+			<ToastContainer 
+				position="top-center"
+				theme="colored"
+			/>
 		</div>
 	);
 }

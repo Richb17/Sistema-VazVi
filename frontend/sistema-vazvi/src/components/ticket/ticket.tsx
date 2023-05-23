@@ -4,9 +4,11 @@ import { EyeIcon } from "@heroicons/react/24/solid";
 import { Icon } from "@iconify/react";
 import ITicket from "../../models/ticket.model";
 import Modal from "react-modal";
-import { XCircleIcon } from "@heroicons/react/24/outline";
+import { XCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { TicketPayment } from "../ticket-payment/ticket-payment";
 import { TicketDetail } from "../ticket-detail/ticket-detail";
+import moment from "moment";
+import { toast } from "react-toastify";
 
 const customStyles = {
 	content: {
@@ -17,14 +19,16 @@ const customStyles = {
 		transform: "translate(-50%, -50%)",
 		borderRadius: 30,
 	},
+	overlay: {
+		backgroundColor: "rgba(0, 0, 0, 0.8)",
+	},
 };
 export interface TicketProps {
 	className?: string;
-	ticket?: ITicket;
-	setTicket?: any;
+	ticket: ITicket;
 }
 
-const Ticket: React.FC<TicketProps> = ({ className = "", ticket, setTicket }) => {
+const Ticket: React.FC<TicketProps> = ({ className = "", ticket }) => {
 	const [modalDetail, setDetail] = useState(false);
 	const [modalPayment, setPayment] = useState(false);
 
@@ -37,7 +41,11 @@ const Ticket: React.FC<TicketProps> = ({ className = "", ticket, setTicket }) =>
 	}
 
 	function openPayment() {
-		setPayment(true);
+		if(!ticket.is_payed) {
+			setPayment(true);
+		}else{
+			toast.warning('El ticket # '+ ticket.id + ' ya ha sido pagado.');
+		}
 	}
 
 	function closePayment() {
@@ -52,11 +60,11 @@ const Ticket: React.FC<TicketProps> = ({ className = "", ticket, setTicket }) =>
 				style={customStyles}
 				contentLabel="Form Modal"
 			>
-				<XCircleIcon
+				<XMarkIcon
 					className="closeIcon"
 					onClick={closeDetail}
 				/>
-				<TicketDetail/>
+				<TicketDetail ticketID={ticket.id} items={ticket.items} total={ticket.total}/>
 				<button className="btn btnPrimary" onClick={closeDetail} >Aceptar</button>
 			</Modal>
 			<Modal
@@ -65,27 +73,27 @@ const Ticket: React.FC<TicketProps> = ({ className = "", ticket, setTicket }) =>
 				style={customStyles}
 				contentLabel="Form Modal"
 			>
-				<XCircleIcon
+				<XMarkIcon
 					className="closeIcon"
 					onClick={closePayment}
 				/>
-                <TicketPayment/>
+                <TicketPayment  ticketID={ticket.id} closePayment={closePayment}/>
 			</Modal>
 			<Icon
 				icon="ic:outline-receipt-long"
 				className="ticketI"
 			/>
 			<div className="DataTick">
-				<h6 className="TitleT">Ticket #{`${ticket?.id}`}</h6>
+				<h6 className="TitleT">Ticket #{`${ticket.id}`}</h6>
 				<span className="InfoTicket">
-					<p>Fecha: DD-MM-YYYY</p>
-					<p>Total: ${`${ticket?.total}`}</p>
-					<p>Abonado: $500.00</p>
-					<p>Restante: $1000.00</p>
+					<p>Fecha: {`${moment(ticket.createdOn).format('DD-MM-YYYY')}`}</p>
+					<p>Total: {`${ticket.total.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}`}</p>
+					<p>Abonado: {`${ticket.payed.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}`}</p>
+					<p>Restante: {`${(ticket.total - ticket.payed).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}`}</p>
 				</span>
 			</div>
 			<div className="divRight">
-				{ticket?.is_payed ? (
+				{ticket.is_payed ? (
 					<div className="estadoTicket pagado">Pagado</div>
 				) : (
 					<div className="estadoTicket pendiente">Pendiente</div>
